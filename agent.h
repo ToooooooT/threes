@@ -8,6 +8,7 @@
  */
 
 #pragma once
+#include <climits>
 #include <string>
 #include <random>
 #include <sstream>
@@ -165,10 +166,16 @@ public:
 
 	virtual action take_action(const board& before) {
 		std::shuffle(opcode.begin(), opcode.end(), engine);
+		int max_reward = INT_MIN, max_reward_op = 0;
 		for (int op : opcode) {
 			board::reward reward = board(before).slide(op);
-			if (reward != -1) return action::slide(op);
+			if (reward > max_reward) {
+				max_reward = reward;
+				max_reward_op = op;
+			}
 		}
+		if (max_reward != -1) 
+			return action::slide(max_reward_op);
 		return action();
 	}
 
