@@ -161,21 +161,67 @@ private:
  */
 class random_slider : public random_agent {
 public:
+	int slide_count = 0;
+
 	random_slider(const std::string& args = "") : random_agent("name=slide role=slider " + args),
 		opcode({ 0, 1, 2, 3 }) {}
 
-	virtual action take_action(const board& before) {
-		std::shuffle(opcode.begin(), opcode.end(), engine);
-		int max_reward = INT_MIN, max_reward_op = 0;
-		for (int op : opcode) {
-			board::reward reward = board(before).slide(op);
-			if (reward > max_reward) {
-				max_reward = reward;
-				max_reward_op = op;
+	int chooseAction (int reward[4]) {
+		int max_reward = 0, op = 0;
+		for (int i = 0; i < 4; ++i) {
+			if (reward[i] > max_reward) {
+				max_reward = reward[i];
+				op = i;
 			}
 		}
-		if (max_reward != -1) 
-			return action::slide(max_reward_op);
+		return op;
+	}
+
+	void show_bytes (board::data attr) {
+		for (int i = 63; i >=0; --i) {
+			std::cout << ((attr >> i) & 1);
+			if (!(i & 3))
+				std::cout << ' ';
+		}
+		std::cout << '\n';
+	}
+
+	virtual action take_action(const board& before) {
+		slide_count++;
+		board::reward reward_of_op[4] = {0};
+
+		board::grid tile = board(before).getTile();
+		board::data attr = board(before).getAttr();
+		int hint_tile_val = attr & 3;
+		
+		/*
+		std::cout << "slide count: " << slide_count << '\n';
+		std::cout << hint_tile_val << '\n';
+
+		for (int i = 0; i < 4; ++i) {
+			for (int j = 0; j < 4; ++j)
+				std::cout << tile[i][j];
+			std::cout << '\n';
+		}
+		std::cout << '\n';
+		*/
+
+		int op = 0; // opcode
+		
+		for (int op : opcode)
+			reward_of_op[op] = board(before).slide(op);
+
+		if (reward_of_op[2] != -1 || reward_of_op[3] != -1) {
+			op = reward_of_op[2] > reward_of_op[3] ? 2 : 3;
+			return action::slide(op);
+		} else if (reward_of_op[1] != -1)
+			return action::slide(1);
+		else
+			return action::slide(0);
+
+	
+		
+		
 		return action();
 	}
 

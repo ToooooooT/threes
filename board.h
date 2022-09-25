@@ -174,6 +174,14 @@ public:
 		return score;
 	}
 
+	grid getTile () {
+		return tile;
+	}
+
+	data getAttr () {
+		return attr;
+	}
+
 	void rotate(int clockwise_count = 1) {
 		switch (((clockwise_count % 4) + 4) % 4) {
 		default:
