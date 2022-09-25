@@ -186,13 +186,28 @@ public:
 		std::cout << '\n';
 	}
 
+	void add_reward_by_hint (board::grid tile, board::reward reward_of_op[4], unsigned int hint_tile, int op) {
+		int factor = 1;
+		if (op == 2) {
+			for (int j = 0; j < 4; ++j) {
+				if (tile[0][j] == hint_tile)
+					reward_of_op[2] += factor;
+			}
+		} else if (op == 3) {
+			for (int i = 0; i < 4; ++i) {
+				if (tile[i][3] == hint_tile)
+					reward_of_op[3] += factor;
+			}
+		}
+	}
+
 	virtual action take_action(const board& before) {
 		slide_count++;
 		board::reward reward_of_op[4] = {0};
 
 		board::grid tile = board(before).getTile();
 		board::data attr = board(before).getAttr();
-		int hint_tile_val = attr & 3;
+		unsigned int hint_tile = attr & 3;
 		
 		/*
 		std::cout << "slide count: " << slide_count << '\n';
@@ -212,6 +227,7 @@ public:
 			reward_of_op[op] = board(before).slide(op);
 
 		if (reward_of_op[2] != -1 || reward_of_op[3] != -1) {
+			add_reward_by_hint(tile, reward_of_op, hint_tile, op);
 			op = reward_of_op[2] > reward_of_op[3] ? 2 : 3;
 			return action::slide(op);
 		} else if (reward_of_op[1] != -1)
@@ -219,9 +235,6 @@ public:
 		else
 			return action::slide(0);
 
-	
-		
-		
 		return action();
 	}
 
