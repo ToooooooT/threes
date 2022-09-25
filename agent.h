@@ -190,13 +190,24 @@ public:
 		int factor = 1;
 		if (op == 2) {
 			for (int j = 0; j < 4; ++j) {
-				if (tile[0][j] == hint_tile)
+				if (tile[0][j] == hint_tile and hint_tile == 3)
+					reward_of_op[2] += factor;
+				else if (tile[0][j] + hint_tile == 3)
 					reward_of_op[2] += factor;
 			}
 		} else if (op == 3) {
 			for (int i = 0; i < 4; ++i) {
-				if (tile[i][3] == hint_tile)
+				if (tile[i][3] == hint_tile and hint_tile == 3)
 					reward_of_op[3] += factor;
+				else if (tile[i][3] + hint_tile == 3)
+					reward_of_op[3] += factor;
+			}
+		} else if (op == 1) {
+			for (int i = 0; i < 4; ++i) {
+				if (tile[i][0] == hint_tile and hint_tile == 3)
+					reward_of_op[1] += factor;
+				else if (tile[i][0] + hint_tile == 3)
+					reward_of_op[1] += factor;
 			}
 		}
 	}
@@ -226,11 +237,22 @@ public:
 		for (int op : opcode)
 			reward_of_op[op] = board(before).slide(op);
 
-		if (reward_of_op[2] != -1 || reward_of_op[3] != -1) {
-			add_reward_by_hint(tile, reward_of_op, hint_tile, op);
+		if (reward_of_op[2] != -1 && reward_of_op[3] != -1) {
+			add_reward_by_hint(tile, reward_of_op, hint_tile, 2);
+			add_reward_by_hint(tile, reward_of_op, hint_tile, 3);
 			op = reward_of_op[2] > reward_of_op[3] ? 2 : 3;
 			return action::slide(op);
-		} else if (reward_of_op[1] != -1)
+		} else if (reward_of_op[3] != -1)
+			return action::slide(3);
+		else if (reward_of_op[2] != -1 && reward_of_op[1] != -1) {
+			add_reward_by_hint(tile, reward_of_op, hint_tile, 2);
+			add_reward_by_hint(tile, reward_of_op, hint_tile, 1);
+			op = reward_of_op[2] > reward_of_op[1] ? 2 : 1;
+			return action::slide(op);
+		}
+		else if (reward_of_op[2] != -1)
+			return action::slide(2);
+		else if (reward_of_op[1] != -1)
 			return action::slide(1);
 		else
 			return action::slide(0);
