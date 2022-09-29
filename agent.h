@@ -161,11 +161,17 @@ private:
  */
 class random_slider : public random_agent {
 public:
+	unsigned int count_move = 0;
+
 	random_slider(const std::string& args = "") : random_agent("name=slide role=slider " + args),
 		opcode({ 0, 1, 2, 3 }) {}
 
-	void add_reward_by_hint (board::grid tile, board::reward reward_of_op[4], unsigned int hint_tile, int op) {
-		int factor = 3, secFactor = 1;
+	void add_reward_by_hint (board::grid tile, board::reward reward_of_op[4], unsigned int hint_tile, int op, unsigned int count_move) {
+		int factor, secFactor = 1;
+		if (count_move > 200)
+			factor = 4;
+		else
+			factor = 3;
 		if (op == 2) {
 			for (int j = 0; j < 4; ++j) {
 				if ((tile[0][j] == hint_tile && hint_tile == 3) || tile[0][j] + hint_tile == 3)
@@ -191,6 +197,7 @@ public:
 	}
 
 	virtual action take_action(const board& before) {
+		count_move += 1;
 		board::reward reward_of_op[4] = {0}; // reward for each op
 		board::grid tile = board(before).getTile(); // board tile
 		board::data attr = board(before).getAttr(); // board attr
@@ -201,15 +208,15 @@ public:
 			reward_of_op[op] = board(before).slide(op);
 
 		if (reward_of_op[2] != -1 && reward_of_op[3] != -1) {
-			add_reward_by_hint(tile, reward_of_op, hint_tile, 2);
-			add_reward_by_hint(tile, reward_of_op, hint_tile, 3);
+			add_reward_by_hint(tile, reward_of_op, hint_tile, 2, count_move);
+			add_reward_by_hint(tile, reward_of_op, hint_tile, 3, count_move);
 			op = reward_of_op[2] > reward_of_op[3] ? 2 : 3;
 			return action::slide(op);
 		} else if (reward_of_op[3] != -1)
 			return action::slide(3);
 		else if (reward_of_op[2] != -1 && reward_of_op[1] != -1) {
-			add_reward_by_hint(tile, reward_of_op, hint_tile, 2);
-			add_reward_by_hint(tile, reward_of_op, hint_tile, 1);
+			add_reward_by_hint(tile, reward_of_op, hint_tile, 2, count_move);
+			add_reward_by_hint(tile, reward_of_op, hint_tile, 1, count_move);
 			op = reward_of_op[2] > reward_of_op[1] ? 2 : 1;
 			return action::slide(op);
 		}
