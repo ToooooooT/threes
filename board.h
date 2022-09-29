@@ -148,7 +148,7 @@ public:
 				} else if (t1 != 0 && ((t0 + t1 == 3) || (t0 == t1 && t0 >= 3 && t0 < 14))) {
 					t0 = std::max(t0, t1) + 1;
 					t1 = 0;
-					score += 1;
+					score += 3;
 					moved = true;
 				}
 			}

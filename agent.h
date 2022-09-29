@@ -165,27 +165,27 @@ public:
 		opcode({ 0, 1, 2, 3 }) {}
 
 	void add_reward_by_hint (board::grid tile, board::reward reward_of_op[4], unsigned int hint_tile, int op) {
-		int factor = 1;
+		int factor = 3, secFactor = 1;
 		if (op == 2) {
 			for (int j = 0; j < 4; ++j) {
-				if (tile[0][j] == hint_tile and hint_tile == 3)
+				if ((tile[0][j] == hint_tile && hint_tile == 3) || tile[0][j] + hint_tile == 3)
 					reward_of_op[2] += factor;
-				else if (tile[0][j] + hint_tile == 3)
-					reward_of_op[2] += factor;
+				else if ((tile[1][j] == hint_tile && hint_tile == 3) || tile[1][j] + hint_tile == 3)
+					reward_of_op[2] += secFactor;
 			}
 		} else if (op == 3) {
 			for (int i = 0; i < 4; ++i) {
-				if (tile[i][3] == hint_tile and hint_tile == 3)
+				if ((tile[i][3] == hint_tile && hint_tile == 3) || tile[i][3] + hint_tile == 3)
 					reward_of_op[3] += factor;
-				else if (tile[i][3] + hint_tile == 3)
-					reward_of_op[3] += factor;
+				else if ((tile[i][2] == hint_tile and hint_tile == 3) || tile[i][2] + hint_tile == 3)
+					reward_of_op[3] += secFactor;
 			}
 		} else if (op == 1) {
 			for (int i = 0; i < 4; ++i) {
-				if (tile[i][0] == hint_tile and hint_tile == 3)
+				if ((tile[i][0] == hint_tile and hint_tile == 3) || tile[i][0] + hint_tile == 3)
 					reward_of_op[1] += factor;
-				else if (tile[i][0] + hint_tile == 3)
-					reward_of_op[1] += factor;
+				else if ((tile[i][1] == hint_tile and hint_tile == 3) || tile[i][1] + hint_tile == 3)
+					reward_of_op[1] += secFactor;
 			}
 		}
 	}
