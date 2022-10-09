@@ -44,6 +44,5 @@ public:
 		return in;
 	}
 
-protected:
 	std::vector<type> value;
 };

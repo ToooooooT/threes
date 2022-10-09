@@ -8,6 +8,7 @@
  */
 
 #pragma once
+#include <limits.h>
 #include <array>
 #include <iostream>
 #include <iomanip>
@@ -115,6 +116,14 @@ public:
 		operator()(pos) = tile;
 		last(4);
 		return itov(tile);
+	}
+
+	grid getTile () {
+		return tile;
+	}
+
+	data getAttr () {
+		return attr;
 	}
 
 	/**
