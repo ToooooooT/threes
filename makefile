@@ -1,9 +1,9 @@
 all:
 	g++ -std=c++11 -O3 -g -Wall -fmessage-length=0 -o threes threes.cpp
 load_stats:
-	./threes --total=22000 --block=1000 --slide="alpha=0.25 save=weights.bin load=weights.bin" --save="stats.txt"
-statss:
-	./threes --total=22000 --block=1000 --slide="init="16777216,16777216,16777216,16777216," alpha=0.25 save=weights.bin" --save="stats.txt"
+	./threes --total=100000 --block=10000 ---limit=1000 -slide="alpha=0.003125 save=weights.bin load=weights.bin"
+stats:
+	./threes --total=100000 --block=10000 --limit=1000 --slide="init="16777216,16777216,16777216,16777216,16777216,16777216,16777216,16777216,16777216,16777216,16777216,16777216,16777216,16777216,16777216,16777216,16777216,16777216,16777216,16777216,16777216,16777216,16777216,16777216,16777216,16777216,16777216,16777216,16777216,16777216,16777216,16777216" alpha=0.003125 save=weights.bin"
 clean:
 	rm threes
 

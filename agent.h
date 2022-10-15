@@ -20,8 +20,11 @@
 #include "action.h"
 #include "weight.h"
 
+#define N 32
+#define Gamma 0.99
+
 typedef struct {
-	int states[4];
+	int states[32];
 } state_t;
 
 class agent {
@@ -168,7 +171,16 @@ public:
 
 	random_slider(const std::string& args = "") : weight_agent("name=slide role=slider " + args) {}
 
-	void getState (state_t &state, board::grid tile) {
+	void getState (state_t &state, board::grid tile, int j) {
+		/*
+		for (int i = 0; i < 4; ++i) {
+			for (int j = 0; j < 4; ++j)
+				printf("%d ", tile[i][j]);
+			printf("\n");
+		}
+		printf("\n");
+		*/
+
 		/*
 		 *	o x x x
 		 *	o x x x
@@ -183,7 +195,7 @@ public:
 		tmp += tile[2][1];
 		tmp <<= 4;
 		tmp += tile[3][1];
-		state.states[0] = tmp;
+		state.states[j] = tmp;
 		
 		/*
 		 *	x o x x
@@ -199,7 +211,7 @@ public:
 		tmp += tile[2][2];
 		tmp <<= 4;
 		tmp += tile[3][2];
-		state.states[1] = tmp;
+		state.states[j + 1] = tmp;
 
 		/*
 		 *	x o o x
@@ -214,7 +226,7 @@ public:
 				tmp <<= 4;
 			}
 		}
-		state.states[2] = tmp >> 4;
+		state.states[j + 2] = tmp >> 4;
 		
 		/*
 		 *	x x o o
@@ -229,14 +241,24 @@ public:
 				tmp <<= 4;
 			}
 		}
-		state.states[3] = tmp >> 4;
+		state.states[j + 3] = tmp >> 4;
+	}
+
+	void getStates (state_t &state, const board& before) {
+		board s = board(before);
+		for (int i = 0; i < 8; i += 2) {
+			s.rotate_clockwise();
+			getState(state, s.getTile(), i * 4);
+			s.reflect_horizontal();
+			getState(state, s.getTile(), (i + 1) * 4);
+			s.reflect_horizontal();
+		}
 	}
 	
 	int choose_max_value_action (board::reward &reward, state_t &state, const board& before) {
 		int maxOp = -1;
-		float maxValue = -10e30;
+		double maxValue = -10e30;
 		state_t tmpState;
-		
 		
 		board::grid tile = board(before).getTile();
 		for (int i = 0; i < 4; ++i) {
@@ -245,10 +267,11 @@ public:
 			if (tmp == -1)
 				continue;
 			tile = after.getTile();
-			getState(tmpState, tile);
+			getStates(tmpState, before);
 			float value = forward(tmpState); 
 			if (value + tmp > maxValue) {
-				state = tmpState;
+				for (int i = 0; i < N; ++i)
+					state.states[i] = tmpState.states[i];
 				maxOp = i;
 				reward = tmp;
 				maxValue = value + tmp;
@@ -260,7 +283,7 @@ public:
 
 	float forward (state_t state) {
 		float value = 0;
-		for (int i = 0; i < 4; ++i)
+		for (int i = 0; i < N; ++i)
 			value += net[i].value[state.states[i]];
 		return value;
 	}
@@ -277,18 +300,18 @@ public:
 	}
 
 	void train (board::reward next_reward, state_t next_state, state_t state) {
-		for (int i = 0; i < 4; ++i)
-			net[i].value[state.states[i]] += (alpha * (next_reward + forward(next_state) - forward(state)));
+		for (int i = 0; i < N; ++i) {
+			net[i].value[state.states[i]] += (alpha * (next_reward + Gamma * forward(next_state) - forward(state)));
+		}
 	}
 
 	virtual void close_episode(const std::string& flag = "") {
 		// train last afterstate
-		// strange bug need to first pop
-		states.pop_back();
 		state_t next_state = states.back();
 		board::reward next_reward = rewards.back();
-		for (int i = 0; i < 4; ++i)
+		for (int i = 0; i < N; ++i) {
 			net[i].value[next_state.states[i]] -= (alpha * forward(next_state));
+		}
 
 		while (!states.empty()) {
 			next_state = states.back();
