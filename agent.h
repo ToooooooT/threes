@@ -20,11 +20,11 @@
 #include "action.h"
 #include "weight.h"
 
-#define N 32
+#define N 36
 #define Gamma 0.99
 
 typedef struct {
-	int states[32];
+	int states[36];
 } state_t;
 
 class agent {
@@ -171,94 +171,150 @@ public:
 
 	random_slider(const std::string& args = "") : weight_agent("name=slide role=slider " + args) {}
 
-	void getState (state_t &state, board::grid tile, int j) {
+	void getState (state_t &state, board::grid tile) {
 		/*
-		for (int i = 0; i < 4; ++i) {
-			for (int j = 0; j < 4; ++j)
-				printf("%d ", tile[i][j]);
-			printf("\n");
+         *   o o o x
+         *   o o o x
+         *   x x x x    x 6
+         *   x x x x
+         */
+        int tmp = 0, count = 0;
+        for (int i = 0; i < 3; ++i) {
+			for (int j = 0; j < 2; ++j) {
+                tmp = 0;
+                for (int k = i; k < i + 2; ++k) {
+                    for (int l = j; l < j + 3; ++l) {
+				        tmp += tile[k][l];
+				        tmp <<= 4;
+                    }
+			    }
+		        state.states[count] = tmp >> 4;
+                count++;
+            }
 		}
-		printf("\n");
-		*/
 
-		/*
-		 *	o x x x
-		 *	o x x x
-		 *	o o x x
-		 *	o o x x
-		*/
-		int tmp = 0;
-		for (int i = 0; i < 4; ++i) {
-			tmp += tile[i][0];
-			tmp <<= 4;
-		}
-		tmp += tile[2][1];
-		tmp <<= 4;
-		tmp += tile[3][1];
-		state.states[j] = tmp;
+        /*
+         *   o o x x
+         *   o o x x
+         *   o o x x   x 6
+         *   x x x x
+         */
+        for (int i = 0; i < 2; ++i) {
+			for (int j = 0; j < 3; ++j) {
+                tmp = 0;
+                for (int k = i; k < i + 3; ++k) {
+                    for (int l = j; l < j + 2; ++l) {
+				        tmp += tile[k][l];
+				        tmp <<= 4;
+                    }
+			    }
+		        state.states[count] = tmp >> 4;
+                count++;
+            }
+        }
 		
-		/*
-		 *	x o x x
-		 *	x o x x
-		 *	x o o x
-		 *	x o o x
-		*/
-		tmp = 0;
-		for (int i = 0; i < 4; ++i) {
-			tmp += tile[i][1];
-			tmp <<= 4;
-		}
-		tmp += tile[2][2];
-		tmp <<= 4;
-		tmp += tile[3][2];
-		state.states[j + 1] = tmp;
+        /*  
+         *           k = 2:                         k = 0:
+         *   o x x x    x o x x     x x o x     o o x x    x o o x     x x o o
+         *   o x x x    x o x x     x x o x     o o x x    x o o x     x x o o
+         *   o o x x    x o o x     x x o o     o x x x    x o x x     x x o x
+         *   o o x x    x o o x     x x o o     o x x x    x o x x     x x o x
+         */
+        for (int k = 0; k < 3; k += 2) {
+            for (int j = 0; j < 3; ++j) {
+                tmp = 0;
+                for (int i = 0; i < 4; ++i) {
+	    		    tmp += tile[i][j];
+		    	    tmp <<= 4;
+			    }
+                tmp += tile[k][j + 1];
+    			tmp <<= 4;
+                tmp += tile[k + 1][j + 1];
+		        state.states[count] = tmp;
+                count++;
+            }
+        }
 
-		/*
-		 *	x o o x
-		 *	x o o x
-		 *	x o o x
-		 *	x x x x
-		*/
-		tmp = 0;
-		for (int i = 0; i < 3; ++i) {
-			for (int j = 1; j < 3; ++j) {
-				tmp += tile[i][j];
-				tmp <<= 4;
-			}
-		}
-		state.states[j + 2] = tmp >> 4;
-		
-		/*
-		 *	x x o o
-		 *	x x o o
-		 *	x x o o
-		 *	x x x x
-		*/
-		tmp = 0;
-		for (int i = 0; i < 3; ++i) {
-			for (int j = 2; j < 4; ++j) {
-				tmp += tile[i][j];
-				tmp <<= 4;
-			}
-		}
-		state.states[j + 3] = tmp >> 4;
+        /*
+         *           k = 2:                             k = 0:
+         *   x x x o    x x o x     x o x x     x x o o    x o o x     o o x x
+         *   x x x o    x x o x     x o x x     x x o o    x o o x     o o x x
+         *   x x o o    x o o x     o o x x     x x x o    x x o x     x o x x
+         *   x x o o    x o o x     o o x x     x x x o    x x o x     x o x x
+         */
+        for (int k = 0; k < 3; k += 2) {
+            for (int j = 3; j > 0; --j) {
+                tmp = 0;
+                for (int i = 0; i < 4; ++i) {
+	    		    tmp += tile[i][j];
+		    	    tmp <<= 4;
+			    }
+                tmp += tile[k][j - 1];
+	    		tmp <<= 4;
+                tmp += tile[k + 1][j - 1];
+		        state.states[count] = tmp;
+                count++;
+            }
+        }
+
+        /*  
+         *           k = 0:                         k = 2:
+         *   o o o o    x x x x     x x x x     o o o o    x x x x     x x x x
+         *   o o x x    o o o o     x x x x     x x o o    o o o o     x x x x
+         *   x x x x    o o x x     o o o o     x x x x    x x o o     o o o o
+         *   x x x x    x x x x     o o x x     x x x x    x x x x     x x o o
+         */
+        for (int k = 0; k < 3; k += 2) {
+            for (int i = 0; i < 3; ++i) {
+                tmp = 0;
+                for (int j = 0; j < 4; ++j) {
+	    		    tmp += tile[i][j];
+		    	    tmp <<= 4;
+			    }
+                tmp += tile[i + 1][k];
+    			tmp <<= 4;
+                tmp += tile[i + 1][k + 1];
+		        state.states[count] = tmp;
+                count++;
+            }
+        }
+
+        /*  
+         *           k = 0:                         k = 2:
+         *   o o x x    x x x x     x x x x     x x o o    x x x x     x x x x
+         *   o o o o    o o x x     x x x x     o o o o    x x o o     x x x x
+         *   x x x x    o o o o     o o x x     x x x x    o o o o     x x o o
+         *   x x x x    x x x x     o o o o     x x x x    x x x x     o o o o
+         */
+        for (int k = 0; k < 3; k += 2) {
+            for (int i = 1; i < 4; ++i) {
+                tmp = 0;
+                for (int j = 0; j < 4; ++j) {
+	    		    tmp += tile[i][j];
+		    	    tmp <<= 4;
+			    }
+                tmp += tile[i - 1][k];
+    			tmp <<= 4;
+                tmp += tile[i - 1][k + 1];
+		        state.states[count] = tmp;
+                count++;
+            }
+        }
 	}
 
-	void getStates (state_t &state, const board after) {
-		board s = board(after);
-		for (int i = 0; i < 8; i += 2) {
-			s.rotate_clockwise();
-			getState(state, s.getTile(), i * 4);
-			s.reflect_horizontal();
-			getState(state, s.getTile(), (i + 1) * 4);
-			s.reflect_horizontal();
-		}
-	}
-	
 	int choose_max_value_action (board::reward &reward, state_t &state, const board& before) {
 		int maxOp = -1;
 		double maxValue = -10e30;
 		state_t tmpState;
+
+        double r = ((double) rand() / (RAND_MAX));
+        if (r < 0) {
+			board after = board(before);
+            int maxOp = rand() % 4;
+			reward = after.slide(maxOp);
+			getState(state, after.getTile());
+		    return maxOp; 
+        }
 		
 		board::grid tile = board(before).getTile();
 		for (int i = 0; i < 4; ++i) {
@@ -267,7 +323,7 @@ public:
 			if (tmp == -1)
 				continue;
 			tile = after.getTile();
-			getStates(tmpState, after);
+			getState(tmpState, tile);
 			float value = forward(tmpState); 
 			if (value + tmp > maxValue) {
 				state = tmpState;
