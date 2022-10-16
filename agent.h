@@ -244,8 +244,8 @@ public:
 		state.states[j + 3] = tmp >> 4;
 	}
 
-	void getStates (state_t &state, const board& before) {
-		board s = board(before);
+	void getStates (state_t &state, const board after) {
+		board s = board(after);
 		for (int i = 0; i < 8; i += 2) {
 			s.rotate_clockwise();
 			getState(state, s.getTile(), i * 4);
@@ -267,11 +267,10 @@ public:
 			if (tmp == -1)
 				continue;
 			tile = after.getTile();
-			getStates(tmpState, before);
+			getStates(tmpState, after);
 			float value = forward(tmpState); 
 			if (value + tmp > maxValue) {
-				for (int i = 0; i < N; ++i)
-					state.states[i] = tmpState.states[i];
+				state = tmpState;
 				maxOp = i;
 				reward = tmp;
 				maxValue = value + tmp;
@@ -294,6 +293,9 @@ public:
 
 		int maxOp = choose_max_value_action(reward, state, before);	
 		
+        if (maxOp == -1)
+            return action();
+
 		states.push_back(state);
 		rewards.push_back(reward);
 		return action::slide(maxOp);
