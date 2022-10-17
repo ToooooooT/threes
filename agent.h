@@ -20,11 +20,11 @@
 #include "action.h"
 #include "weight.h"
 
-#define N 36
+#define N 45
 #define Gamma 0.99
 
 typedef struct {
-	int states[36];
+	int states[N];
 } state_t;
 
 class agent {
@@ -172,13 +172,33 @@ public:
 	random_slider(const std::string& args = "") : weight_agent("name=slide role=slider " + args) {}
 
 	void getState (state_t &state, board::grid tile) {
+        /*
+         *   o o x x
+         *   o o x x
+         *   x x x x    x 9
+         *   x x x x
+         */
+        int tmp = 0, count = 0;
+        for (int i = 0; i < 3; ++i) {
+			for (int j = 0; j < 3; ++j) {
+                tmp = 0;
+                for (int k = i; k < i + 2; ++k) {
+                    for (int l = j; l < j + 2; ++l) {
+				        tmp += tile[k][l];
+				        tmp <<= 4;
+                    }
+			    }
+		        state.states[count] = tmp >> 4;
+                count++;
+            }
+		}
+
 		/*
          *   o o o x
          *   o o o x
          *   x x x x    x 6
          *   x x x x
          */
-        int tmp = 0, count = 0;
         for (int i = 0; i < 3; ++i) {
 			for (int j = 0; j < 2; ++j) {
                 tmp = 0;
@@ -307,14 +327,16 @@ public:
 		double maxValue = -10e30;
 		state_t tmpState;
 
+        /*
         double r = ((double) rand() / (RAND_MAX));
-        if (r < 0) {
+        if (r < 0.001) {
 			board after = board(before);
             int maxOp = rand() % 4;
 			reward = after.slide(maxOp);
 			getState(state, after.getTile());
 		    return maxOp; 
         }
+        */
 		
 		board::grid tile = board(before).getTile();
 		for (int i = 0; i < 4; ++i) {
