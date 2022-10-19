@@ -185,10 +185,10 @@ public:
                 for (int k = i; k < i + 2; ++k) {
                     for (int l = j; l < j + 2; ++l) {
 				        tmp += tile[k][l];
-				        tmp <<= 4;
+				        tmp *= 11;
                     }
 			    }
-		        state.states[count] = tmp >> 4;
+		        state.states[count] = tmp / 11;
                 count++;
             }
 		}
@@ -205,10 +205,10 @@ public:
                 for (int k = i; k < i + 2; ++k) {
                     for (int l = j; l < j + 3; ++l) {
 				        tmp += tile[k][l];
-				        tmp <<= 4;
+				        tmp *= 11;
                     }
 			    }
-		        state.states[count] = tmp >> 4;
+		        state.states[count] = tmp / 11;
                 count++;
             }
 		}
@@ -225,10 +225,10 @@ public:
                 for (int k = i; k < i + 3; ++k) {
                     for (int l = j; l < j + 2; ++l) {
 				        tmp += tile[k][l];
-				        tmp <<= 4;
+				        tmp *= 11;
                     }
 			    }
-		        state.states[count] = tmp >> 4;
+		        state.states[count] = tmp / 11;
                 count++;
             }
         }
@@ -245,10 +245,10 @@ public:
                 tmp = 0;
                 for (int i = 0; i < 4; ++i) {
 	    		    tmp += tile[i][j];
-		    	    tmp <<= 4;
+		    	    tmp *= 11;
 			    }
                 tmp += tile[k][j + 1];
-    			tmp <<= 4;
+    			tmp *= 11;
                 tmp += tile[k + 1][j + 1];
 		        state.states[count] = tmp;
                 count++;
@@ -267,10 +267,10 @@ public:
                 tmp = 0;
                 for (int i = 0; i < 4; ++i) {
 	    		    tmp += tile[i][j];
-		    	    tmp <<= 4;
+		    	    tmp *= 11;
 			    }
                 tmp += tile[k][j - 1];
-	    		tmp <<= 4;
+	    		tmp *= 11;
                 tmp += tile[k + 1][j - 1];
 		        state.states[count] = tmp;
                 count++;
@@ -289,10 +289,10 @@ public:
                 tmp = 0;
                 for (int j = 0; j < 4; ++j) {
 	    		    tmp += tile[i][j];
-		    	    tmp <<= 4;
+		    	    tmp *= 11;
 			    }
                 tmp += tile[i + 1][k];
-    			tmp <<= 4;
+    			tmp *= 11;
                 tmp += tile[i + 1][k + 1];
 		        state.states[count] = tmp;
                 count++;
@@ -311,10 +311,10 @@ public:
                 tmp = 0;
                 for (int j = 0; j < 4; ++j) {
 	    		    tmp += tile[i][j];
-		    	    tmp <<= 4;
+		    	    tmp *= 11;
 			    }
                 tmp += tile[i - 1][k];
-    			tmp <<= 4;
+    			tmp *= 11;
                 tmp += tile[i - 1][k + 1];
 		        state.states[count] = tmp;
                 count++;
@@ -327,17 +327,6 @@ public:
 		double maxValue = -10e30;
 		state_t tmpState;
 
-        /*
-        double r = ((double) rand() / (RAND_MAX));
-        if (r < 0.001) {
-			board after = board(before);
-            int maxOp = rand() % 4;
-			reward = after.slide(maxOp);
-			getState(state, after.getTile());
-		    return maxOp; 
-        }
-        */
-		
 		board::grid tile = board(before).getTile();
 		for (int i = 0; i < 4; ++i) {
 			board after = board(before);
@@ -365,14 +354,50 @@ public:
 		return value;
 	}
 
+    bool haveBigNum (board before) {
+        board::grid tile = before.getTile();
+        for (int i = 0; i < 4; ++i) {
+            for (int j = 0; j < 4; ++j) {
+                if (tile[i][j] >= 10)
+                    return true;
+            }
+        }
+        return false;
+    }
+
 	virtual action take_action(const board& before) {
 		board::reward reward = 0;
 		state_t state;
 
+        if (haveBigNum(before)) {
+            if (board(before).slide(0) != -1)
+		    	return action::slide(0);
+	        else if (board(before).slide(3) != -1)
+			    return action::slide(3);
+		    else if (board(before).slide(1) != -1)
+		    	return action::slide(1);
+    		else if (board(before).slide(2) != -1)
+	    		return action::slide(2);
+		    else
+			    return action();
+        }
+
 		int maxOp = choose_max_value_action(reward, state, before);	
 		
-        if (maxOp == -1)
+        if (maxOp == -1) {
+            if (!haveBigNum(before)) {
+                int tmp = rewards.back();
+                tmp -= 9999;
+                rewards.pop_back();
+                rewards.push_back(tmp);
+            }
             return action();
+        }
+
+        board after = board(before);
+        after.slide(maxOp);
+        if (!haveBigNum(before) && haveBigNum(after))
+            reward += 9999;
 
 		states.push_back(state);
 		rewards.push_back(reward);
@@ -384,8 +409,11 @@ public:
 			net[i].value[state.states[i]] += (alpha * (next_reward + Gamma * forward(next_state) - forward(state)));
 		}
 	}
-
+    
 	virtual void close_episode(const std::string& flag = "") {
+        if (states.empty())
+            return ;
+
 		// train last afterstate
 		state_t next_state = states.back();
 		board::reward next_reward = rewards.back();
