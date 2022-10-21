@@ -20,7 +20,7 @@
 #include "action.h"
 #include "weight.h"
 
-#define N 45
+#define N 46
 #define Gamma 0.99
 
 typedef struct {
@@ -335,6 +335,7 @@ public:
 				continue;
 			tile = after.getTile();
 			getState(tmpState, tile);
+			tmpState.states[N - 1] = ((int) board(before).getAttr() & 0x3) - 1;
 			float value = forward(tmpState); 
 			if (value + tmp > maxValue) {
 				state = tmpState;
