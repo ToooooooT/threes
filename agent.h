@@ -355,7 +355,7 @@ public:
 		return value;
 	}
 
-    bool haveBigNum (board before) {
+    bool have384 (board before) {
         board::grid tile = before.getTile();
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 4; ++j) {
@@ -366,11 +366,22 @@ public:
         return false;
     }
 
+	bool have192 (board before) {
+        board::grid tile = before.getTile();
+        for (int i = 0; i < 4; ++i) {
+            for (int j = 0; j < 4; ++j) {
+                if (tile[i][j] >= 9)
+                    return true;
+            }
+        }
+        return false;
+    }
+
 	virtual action take_action(const board& before) {
 		board::reward reward = 0;
 		state_t state;
 
-        if (haveBigNum(before)) {
+        if (have384(before)) {
             if (board(before).slide(0) != -1)
 		    	return action::slide(0);
 	        else if (board(before).slide(3) != -1)
@@ -386,7 +397,7 @@ public:
 		int maxOp = choose_max_value_action(reward, state, before);	
 		
         if (maxOp == -1) {
-            if (!haveBigNum(before)) {
+            if (!have384(before)) {
                 int tmp = rewards.back();
                 tmp -= 9999;
                 rewards.pop_back();
@@ -397,7 +408,7 @@ public:
 
         board after = board(before);
         after.slide(maxOp);
-        if (!haveBigNum(before) && haveBigNum(after))
+        if (!have384(before) && have384(after))
             reward += 9999;
 
 		states.push_back(state);
@@ -406,9 +417,15 @@ public:
 	}
 
 	void train (board::reward next_reward, state_t next_state, state_t state) {
-		for (int i = 0; i < N; ++i) {
+		// 𝚯[𝝓(𝒔′_t)] ← 𝚯[𝝓(𝒔′_t)] + 𝜶(𝒓_t + 𝑽(𝒔′_{t+1}) − 𝑽(𝒔′_t))
+		for (int i = 0; i < N; ++i)
 			net[i].value[state.states[i]] += (alpha * (next_reward + Gamma * forward(next_state) - forward(state)));
-		}
+	}
+
+	void train_2step (board::reward next_reward, board::reward next_next_reward, state_t next_next_state, state_t state) {
+		// 𝚯[𝝓(𝒔′_t)] ← 𝚯[𝝓(𝒔′_t)] + 𝜶(𝒓_t + r_{t+1} + 𝑽(𝒔′_{t+2}) − 𝑽(𝒔′_t))
+		for (int i = 0; i < N; ++i)
+			net[i].value[state.states[i]] += (alpha * (next_reward + Gamma * next_next_reward + Gamma * Gamma * forward(next_next_state) - forward(state)));
 	}
     
 	virtual void close_episode(const std::string& flag = "") {
@@ -416,20 +433,27 @@ public:
             return ;
 
 		// train last afterstate
+		state_t next_next_state = states.back();
+		board::reward next_next_reward = rewards.back();
+		for (int i = 0; i < N; ++i)
+			net[i].value[next_next_state.states[i]] -= (alpha * forward(next_next_state));
+
+		states.pop_back();
+		rewards.pop_back();
+		// train last 2 afterstate
 		state_t next_state = states.back();
 		board::reward next_reward = rewards.back();
-		for (int i = 0; i < N; ++i) {
-			net[i].value[next_state.states[i]] -= (alpha * forward(next_state));
-		}
+		for (int i = 0; i < N; ++i)
+			net[i].value[next_state.states[i]] += (alpha * (next_reward - forward(next_state)));
 
 		while (!states.empty()) {
+			train_2step(next_reward, next_next_reward, next_state, states.back());
+			next_next_state = next_state;
+			next_next_reward = next_reward;
 			next_state = states.back();
 			next_reward = rewards.back();
 			states.pop_back();
 			rewards.pop_back();
-			if (states.empty())
-				break;
-			train(next_reward, next_state, states.back());
 		}
 	}
 
