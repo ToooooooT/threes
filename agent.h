@@ -22,6 +22,7 @@
 
 #define N 46
 #define Gamma 0.99
+#define lambda 0.5
 
 typedef struct {
 	int states[N];
@@ -427,11 +428,22 @@ public:
 		for (int i = 0; i < N; ++i)
 			net[i].value[state.states[i]] += (alpha * (next_reward + Gamma * next_next_reward + Gamma * Gamma * forward(next_next_state) - forward(state)));
 	}
-    
-	virtual void close_episode(const std::string& flag = "") {
-        if (states.empty())
-            return ;
 
+	void train_lambda (std::vector <board::reward> rewards, std::vector <state_t> states, int last) {
+		float q_target = 0.0; 
+		for (int i = 0; i < last; ++i) {
+			float sum = 0;
+			for (int j = 0; j <= i; ++j) {
+				sum += (pow(Gamma, j) * rewards[rewards.size() - 5 + j]);
+			}
+			sum += (pow(Gamma, i + 1) * forward(states[states.size() - 5 + i]));
+			q_target += (sum * pow(lambda, i + 1));
+		}
+		for (int i = 0; i < N; ++i)
+			net[i].value[states[states.size() - 6].states[i]] += (alpha * (q_target - forward(states[states.size() - 6])));		
+	}
+
+	void TD_0 () {
 		// train last afterstate
 		state_t next_next_state = states.back();
 		board::reward next_next_reward = rewards.back();
@@ -455,6 +467,36 @@ public:
 			states.pop_back();
 			rewards.pop_back();
 		}
+	}
+
+	void TD_lambda () {
+		state_t tmp;
+		for (int i = 0; i < 5; ++i) {
+			rewards.push_back(0);
+			states.push_back(tmp);
+		}
+
+		for (int i = 0; i < 5; ++i) {
+			train_lambda(rewards, states, i);
+			states.pop_back();
+			rewards.pop_back();
+		}
+
+		while (states.size() > 5) {
+			train_lambda(rewards, states, 5);
+			states.pop_back();
+			rewards.pop_back();
+		}
+	}
+
+	virtual void close_episode(const std::string& flag = "") {
+        if (states.empty())
+            return;
+
+		// TD_0();
+		TD_lambda();		
+		states.clear();
+		rewards.clear();
 	}
 
 private:
