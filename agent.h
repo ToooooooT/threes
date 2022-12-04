@@ -20,7 +20,7 @@
 #include "action.h"
 #include "weight.h"
 
-#define N 46
+#define N 54
 #define Gamma 0.99
 #define lambda 0.5
 
@@ -122,6 +122,7 @@ protected:
 
 protected:
 	std::vector<weight> net;
+	std::vector<weight> net2;
 	float alpha;
 };
 
@@ -170,16 +171,51 @@ private:
 class random_slider : public weight_agent {
 public:
 
-	random_slider(const std::string& args = "") : weight_agent("name=slide role=slider " + args) {}
+	random_slider(const std::string& args = "") : weight_agent("name=slide role=slider " + args) {
+		splitpoint = INT_MAX;
+	}
 
 	void getState (state_t &state, board::grid tile) {
+        /*
+         *   o x x x
+         *   o x x x
+         *   o x x x    x 4
+         *   o x x x
+         */
+        int tmp = 0, count = 0;
+		for (int j = 0; j < 4; ++j) {
+			tmp = 0;
+			for (int i = 0; i < 4; ++i) {
+				tmp += tile[i][j];
+				tmp *= 11;
+			}
+			state.states[count] = tmp / 11;
+			count++;
+		}
+
+		/*
+         *   o o o o
+         *   x x x x
+         *   x x x x    x 4
+         *   x x x x
+         */
+		for (int i = 0; i < 4; ++i) {
+			tmp = 0;
+			for (int j = 0; j < 4; ++j) {
+				tmp += tile[i][j];
+				tmp *= 11;
+			}
+			state.states[count] = tmp / 11;
+			count++;
+		}
+
+
         /*
          *   o o x x
          *   o o x x
          *   x x x x    x 9
          *   x x x x
          */
-        int tmp = 0, count = 0;
         for (int i = 0; i < 3; ++i) {
 			for (int j = 0; j < 3; ++j) {
                 tmp = 0;
@@ -323,7 +359,7 @@ public:
         }
 	}
 
-	int choose_max_value_action (board::reward &reward, state_t &state, const board& before) {
+	int choose_max_value_action (board::reward &reward, state_t &state, const board& before, bool useSecond) {
 		int maxOp = -1;
 		double maxValue = -10e30;
 		state_t tmpState;
@@ -337,7 +373,7 @@ public:
 			tile = after.getTile();
 			getState(tmpState, tile);
 			tmpState.states[N - 1] = ((int) board(before).getAttr() & 0x3) - 1;
-			float value = forward(tmpState); 
+			float value = forward(tmpState, useSecond); 
 			if (value + tmp > maxValue) {
 				state = tmpState;
 				maxOp = i;
@@ -349,10 +385,10 @@ public:
 		return maxOp; 
 	}
 
-	float forward (state_t state) {
+	float forward (state_t state, bool useSecond) {
 		float value = 0;
-		for (int i = 0; i < N; ++i)
-			value += net[i].value[state.states[i]];
+		for (int i = N * useSecond; i < N + N * useSecond; ++i)
+			value += net[i].value[state.states[i - N * useSecond]];
 		return value;
 	}
 
@@ -395,20 +431,36 @@ public:
 			    return action();
         }
 
-		int maxOp = choose_max_value_action(reward, state, before);	
+		bool useSecond = have192(before);
+
+		int maxOp = choose_max_value_action(reward, state, before, useSecond);	
 		
         if (maxOp == -1) {
-            if (!have384(before)) {
+            if (!have192(before)) {
+                int tmp = rewards.back();
+                tmp -= 9999;
+                rewards.pop_back();
+                rewards.push_back(tmp);
+            } else if (!have384(before)) {
                 int tmp = rewards.back();
                 tmp -= 9999;
                 rewards.pop_back();
                 rewards.push_back(tmp);
             }
+			state_t tmp;
+			board::grid tile = board(before).getTile();
+			getState(tmp, tile);
+			tmp.states[N - 1] = ((int) board(before).getAttr() & 0x3) - 1;
+			states.push_back(tmp);
             return action();
         }
 
         board after = board(before);
         after.slide(maxOp);
+        if (!have192(before) && have192(after)) {
+            reward += 9999;
+			splitpoint = states.size() + 1;
+		}
         if (!have384(before) && have384(after))
             reward += 9999;
 
@@ -417,49 +469,59 @@ public:
 		return action::slide(maxOp);
 	}
 
-	void train (board::reward next_reward, state_t next_state, state_t state) {
+	/*
+	void train (board::reward next_reward, state_t next_state, state_t state, bool useSecond) {
 		// 𝚯[𝝓(𝒔′_t)] ← 𝚯[𝝓(𝒔′_t)] + 𝜶(𝒓_t + 𝑽(𝒔′_{t+1}) − 𝑽(𝒔′_t))
 		for (int i = 0; i < N; ++i)
-			net[i].value[state.states[i]] += (alpha * (next_reward + Gamma * forward(next_state) - forward(state)));
+			net[i].value[state.states[i]] += (alpha * (next_reward + Gamma * forward(next_state, useSecond) - forward(state, useSecond)));
 	}
+	*/
 
-	void train_2step (board::reward next_reward, board::reward next_next_reward, state_t next_next_state, state_t state) {
+	void train_2step (board::reward next_reward, board::reward next_next_reward, state_t next_next_state, state_t state, bool useSecond) {
 		// 𝚯[𝝓(𝒔′_t)] ← 𝚯[𝝓(𝒔′_t)] + 𝜶(𝒓_t + r_{t+1} + 𝑽(𝒔′_{t+2}) − 𝑽(𝒔′_t))
-		for (int i = 0; i < N; ++i)
-			net[i].value[state.states[i]] += (alpha * (next_reward + Gamma * next_next_reward + Gamma * Gamma * forward(next_next_state) - forward(state)));
+		for (int i = N * useSecond; i < N + N * useSecond; ++i)
+			net[i + N * useSecond].value[state.states[i - N * useSecond]] += (alpha * (next_reward + Gamma * next_next_reward + Gamma * Gamma * forward(next_next_state, useSecond) - forward(state, useSecond)));
 	}
 
 	void train_lambda (std::vector <board::reward> rewards, std::vector <state_t> states, int last) {
 		float q_target = 0.0; 
+		bool useSecond = states.size() - 6 >= splitpoint;
+		if (states.size() - 6 == splitpoint) {
+			// train last state in net 1
+			for (int i = 0; i < N; ++i)
+				net[i].value[states[states.size() - 6].states[i]] += (alpha * (-forward(states[states.size() - 6], false)));		
+		}
 		for (int i = 0; i < last; ++i) {
 			float sum = 0;
-			for (int j = 0; j <= i; ++j) {
+			for (int j = 0; j <= i; ++j)
 				sum += (pow(Gamma, j) * rewards[rewards.size() - 5 + j]);
-			}
-			sum += (pow(Gamma, i + 1) * forward(states[states.size() - 5 + i]));
-			q_target += (sum * pow(lambda, i + 1));
+			sum += (pow(Gamma, i + 1) * forward(states[states.size() - 5 + i], states.size() - 5 + i >= splitpoint));
+			if (useSecond || states.size() - 5 + i < splitpoint)
+				q_target += (sum * pow(lambda, i + 1));
 		}
 		for (int i = 0; i < N; ++i)
-			net[i].value[states[states.size() - 6].states[i]] += (alpha * (q_target - forward(states[states.size() - 6])));		
+			net[i + N * useSecond].value[states[states.size() - 6].states[i]] += (alpha * (q_target - forward(states[states.size() - 6], useSecond)));		
 	}
 
 	void TD_0 () {
 		// train last afterstate
 		state_t next_next_state = states.back();
 		board::reward next_next_reward = rewards.back();
+		bool useSecond = states.size() - 1 > splitpoint;
 		for (int i = 0; i < N; ++i)
-			net[i].value[next_next_state.states[i]] -= (alpha * forward(next_next_state));
+			net[i + N * useSecond].value[next_next_state.states[i]] -= (alpha * forward(next_next_state, useSecond));
 
 		states.pop_back();
 		rewards.pop_back();
 		// train last 2 afterstate
 		state_t next_state = states.back();
 		board::reward next_reward = rewards.back();
+		useSecond = states.size() - 1 > splitpoint;
 		for (int i = 0; i < N; ++i)
-			net[i].value[next_state.states[i]] += (alpha * (next_reward - forward(next_state)));
+			net[i + N * useSecond].value[next_state.states[i]] += (alpha * (next_reward - forward(next_state, useSecond)));
 
 		while (!states.empty()) {
-			train_2step(next_reward, next_next_reward, next_state, states.back());
+			train_2step(next_reward, next_next_reward, next_state, states.back(), states.size() - 1 > splitpoint);
 			next_next_state = next_state;
 			next_next_reward = next_reward;
 			next_state = states.back();
@@ -471,6 +533,8 @@ public:
 
 	void TD_lambda () {
 		state_t tmp;
+		for (int i = 0; i < N; ++i)
+			tmp.states[i] = -1;
 		for (int i = 0; i < 5; ++i) {
 			rewards.push_back(0);
 			states.push_back(tmp);
@@ -502,4 +566,5 @@ public:
 private:
 	std::vector <state_t> states;
 	std::vector <board::reward> rewards;
+	int splitpoint;
 };
