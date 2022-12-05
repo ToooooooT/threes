@@ -23,6 +23,8 @@
 #define N 54
 #define Gamma 0.99
 #define lambda 0.5
+#define FIRSTSTAGENUM 9
+#define STOPNUM 10
 
 typedef struct {
 	int states[N];
@@ -101,6 +103,13 @@ protected:
 			if (!std::isdigit(ch)) ch = ' ';
 		std::stringstream in(res);
 		for (size_t size; in >> size; net.emplace_back(size));
+
+		// OTD
+		for (int i = 0; i < 2 * N; ++i) {
+			for (int j = 0; j < net[i].size(); ++j) {
+				net[i].value[j] = 19999;
+			}
+		}
 	}
 	virtual void load_weights(const std::string& path) {
 		std::ifstream in(path, std::ios::in | std::ios::binary);
@@ -396,7 +405,7 @@ public:
         board::grid tile = before.getTile();
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 4; ++j) {
-                if (tile[i][j] >= 10)
+                if (tile[i][j] >= STOPNUM)
                     return true;
             }
         }
@@ -407,7 +416,7 @@ public:
         board::grid tile = before.getTile();
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 4; ++j) {
-                if (tile[i][j] >= 9)
+                if (tile[i][j] >= FIRSTSTAGENUM)
                     return true;
             }
         }
