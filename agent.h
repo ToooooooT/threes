@@ -20,9 +20,11 @@
 #include "action.h"
 #include "weight.h"
 
-#define N 46
+#define N 54
 #define Gamma 0.99
 #define lambda 0.5
+#define STOPNUM 12
+#define STATENUM 13
 
 typedef struct {
 	int states[N];
@@ -101,6 +103,13 @@ protected:
 			if (!std::isdigit(ch)) ch = ' ';
 		std::stringstream in(res);
 		for (size_t size; in >> size; net.emplace_back(size));
+
+		// OTD
+		for (int i = 0; i < 2 * N; ++i) {
+			for (int j = 0; j < net[i].size(); ++j) {
+				net[i].value[j] = 59999;
+			}
+		}
 	}
 	virtual void load_weights(const std::string& path) {
 		std::ifstream in(path, std::ios::in | std::ios::binary);
@@ -173,23 +182,55 @@ public:
 	random_slider(const std::string& args = "") : weight_agent("name=slide role=slider " + args) {}
 
 	void getState (state_t &state, board::grid tile) {
+		/*
+         *   o x x x
+         *   o x x x
+         *   o x x x    x 4
+         *   o x x x
+         */
+        int tmp = 0, count = 0;
+		for (int j = 0; j < 4; ++j) {
+			tmp = 0;
+			for (int i = 0; i < 4; ++i) {
+				tmp += tile[i][j];
+				tmp *= STATENUM;
+			}
+			state.states[count] = tmp / STATENUM;
+			count++;
+		}
+
+		/*
+         *   o o o o
+         *   x x x x
+         *   x x x x    x 4
+         *   x x x x
+         */
+		for (int i = 0; i < 4; ++i) {
+			tmp = 0;
+			for (int j = 0; j < 4; ++j) {
+				tmp += tile[i][j];
+				tmp *= STATENUM;
+			}
+			state.states[count] = tmp / STATENUM;
+			count++;
+		}
+
         /*
          *   o o x x
          *   o o x x
          *   x x x x    x 9
          *   x x x x
          */
-        int tmp = 0, count = 0;
         for (int i = 0; i < 3; ++i) {
 			for (int j = 0; j < 3; ++j) {
                 tmp = 0;
                 for (int k = i; k < i + 2; ++k) {
                     for (int l = j; l < j + 2; ++l) {
 				        tmp += tile[k][l];
-				        tmp *= 11;
+				        tmp *= STATENUM;
                     }
 			    }
-		        state.states[count] = tmp / 11;
+		        state.states[count] = tmp / STATENUM;
                 count++;
             }
 		}
@@ -206,10 +247,10 @@ public:
                 for (int k = i; k < i + 2; ++k) {
                     for (int l = j; l < j + 3; ++l) {
 				        tmp += tile[k][l];
-				        tmp *= 11;
+				        tmp *= STATENUM;
                     }
 			    }
-		        state.states[count] = tmp / 11;
+		        state.states[count] = tmp / STATENUM;
                 count++;
             }
 		}
@@ -226,10 +267,10 @@ public:
                 for (int k = i; k < i + 3; ++k) {
                     for (int l = j; l < j + 2; ++l) {
 				        tmp += tile[k][l];
-				        tmp *= 11;
+				        tmp *= STATENUM;
                     }
 			    }
-		        state.states[count] = tmp / 11;
+		        state.states[count] = tmp / STATENUM;
                 count++;
             }
         }
@@ -246,10 +287,10 @@ public:
                 tmp = 0;
                 for (int i = 0; i < 4; ++i) {
 	    		    tmp += tile[i][j];
-		    	    tmp *= 11;
+		    	    tmp *= STATENUM;
 			    }
                 tmp += tile[k][j + 1];
-    			tmp *= 11;
+    			tmp *= STATENUM;
                 tmp += tile[k + 1][j + 1];
 		        state.states[count] = tmp;
                 count++;
@@ -268,10 +309,10 @@ public:
                 tmp = 0;
                 for (int i = 0; i < 4; ++i) {
 	    		    tmp += tile[i][j];
-		    	    tmp *= 11;
+		    	    tmp *= STATENUM;
 			    }
                 tmp += tile[k][j - 1];
-	    		tmp *= 11;
+	    		tmp *= STATENUM;
                 tmp += tile[k + 1][j - 1];
 		        state.states[count] = tmp;
                 count++;
@@ -290,10 +331,10 @@ public:
                 tmp = 0;
                 for (int j = 0; j < 4; ++j) {
 	    		    tmp += tile[i][j];
-		    	    tmp *= 11;
+		    	    tmp *= STATENUM;
 			    }
                 tmp += tile[i + 1][k];
-    			tmp *= 11;
+    			tmp *= STATENUM;
                 tmp += tile[i + 1][k + 1];
 		        state.states[count] = tmp;
                 count++;
@@ -312,10 +353,10 @@ public:
                 tmp = 0;
                 for (int j = 0; j < 4; ++j) {
 	    		    tmp += tile[i][j];
-		    	    tmp *= 11;
+		    	    tmp *= STATENUM;
 			    }
                 tmp += tile[i - 1][k];
-    			tmp *= 11;
+    			tmp *= STATENUM;
                 tmp += tile[i - 1][k + 1];
 		        state.states[count] = tmp;
                 count++;
@@ -356,22 +397,11 @@ public:
 		return value;
 	}
 
-    bool have384 (board before) {
+    bool haveSTOPNUM (board before) {
         board::grid tile = before.getTile();
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 4; ++j) {
-                if (tile[i][j] >= 10)
-                    return true;
-            }
-        }
-        return false;
-    }
-
-	bool have192 (board before) {
-        board::grid tile = before.getTile();
-        for (int i = 0; i < 4; ++i) {
-            for (int j = 0; j < 4; ++j) {
-                if (tile[i][j] >= 9)
+                if (tile[i][j] >= STOPNUM)
                     return true;
             }
         }
@@ -382,7 +412,7 @@ public:
 		board::reward reward = 0;
 		state_t state;
 
-        if (have384(before)) {
+        if (haveSTOPNUM(before)) {
             if (board(before).slide(0) != -1)
 		    	return action::slide(0);
 	        else if (board(before).slide(3) != -1)
@@ -398,19 +428,14 @@ public:
 		int maxOp = choose_max_value_action(reward, state, before);	
 		
         if (maxOp == -1) {
-            if (!have384(before)) {
-                int tmp = rewards.back();
-                tmp -= 9999;
-                rewards.pop_back();
-                rewards.push_back(tmp);
-            }
+			// push end state
+			state_t tmp;
+			board::grid tile = board(before).getTile();
+			getState(tmp, tile);
+			tmp.states[N - 1] = ((int) board(before).getAttr() & 0x3) - 1;
+			states.push_back(tmp);
             return action();
-        }
-
-        board after = board(before);
-        after.slide(maxOp);
-        if (!have384(before) && have384(after))
-            reward += 9999;
+		}
 
 		states.push_back(state);
 		rewards.push_back(reward);
@@ -433,9 +458,8 @@ public:
 		float q_target = 0.0; 
 		for (int i = 0; i < last; ++i) {
 			float sum = 0;
-			for (int j = 0; j <= i; ++j) {
+			for (int j = 0; j <= i; ++j)
 				sum += (pow(Gamma, j) * rewards[rewards.size() - 5 + j]);
-			}
 			sum += (pow(Gamma, i + 1) * forward(states[states.size() - 5 + i]));
 			q_target += (sum * pow(lambda, i + 1));
 		}
@@ -446,23 +470,25 @@ public:
 	void TD_0 () {
 		// train last afterstate
 		state_t next_next_state = states.back();
-		board::reward next_next_reward = rewards.back();
 		for (int i = 0; i < N; ++i)
 			net[i].value[next_next_state.states[i]] -= (alpha * forward(next_next_state));
 
 		states.pop_back();
 		rewards.pop_back();
-		// train last 2 afterstate
+		// train second last afterstate
 		state_t next_state = states.back();
 		board::reward next_reward = rewards.back();
 		for (int i = 0; i < N; ++i)
-			net[i].value[next_state.states[i]] += (alpha * (next_reward - forward(next_state)));
+			net[i].value[next_state.states[i]] += (alpha * (next_reward + Gamma * forward(next_next_state) - forward(next_state)));
 
+		// train third last afterstate
+		board::reward next_next_reward = next_reward;
+		next_reward = rewards.back();
 		while (!states.empty()) {
 			train_2step(next_reward, next_next_reward, next_state, states.back());
 			next_next_state = next_state;
-			next_next_reward = next_reward;
 			next_state = states.back();
+			next_next_reward = next_reward;
 			next_reward = rewards.back();
 			states.pop_back();
 			rewards.pop_back();
@@ -493,8 +519,8 @@ public:
         if (states.empty())
             return;
 
-		// TD_0();
-		TD_lambda();		
+		TD_0();
+		// TD_lambda();		
 		states.clear();
 		rewards.clear();
 	}
