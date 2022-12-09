@@ -105,10 +105,9 @@ protected:
 		for (size_t size; in >> size; net.emplace_back(size));
 
 		// OTD
-		for (int i = 0; i < 2 * N; ++i) {
-			for (int j = 0; j < net[i].size(); ++j) {
+		for (int i = 0; i < N; ++i) {
+			for (int j = 0; j < net[i].size(); ++j)
 				net[i].value[j] = 59999;
-			}
 		}
 	}
 	virtual void load_weights(const std::string& path) {
@@ -427,25 +426,17 @@ public:
 
 		int maxOp = choose_max_value_action(reward, state, before);	
 		
-        if (maxOp == -1) {
-			// push end state
-			state_t tmp;
-			board::grid tile = board(before).getTile();
-			getState(tmp, tile);
-			tmp.states[N - 1] = ((int) board(before).getAttr() & 0x3) - 1;
-			states.push_back(tmp);
+        if (maxOp == -1)
             return action();
-		}
 
 		states.push_back(state);
 		rewards.push_back(reward);
 		return action::slide(maxOp);
 	}
 
-	void train (board::reward next_reward, state_t next_state, state_t state) {
-		// 𝚯[𝝓(𝒔′_t)] ← 𝚯[𝝓(𝒔′_t)] + 𝜶(𝒓_t + 𝑽(𝒔′_{t+1}) − 𝑽(𝒔′_t))
-		for (int i = 0; i < N; ++i)
-			net[i].value[state.states[i]] += (alpha * (next_reward + Gamma * forward(next_state) - forward(state)));
+	float getDelta (board::reward next_reward, state_t next_state, state_t state) {
+		// 𝒓_t + 𝑽(𝒔′_{t+1}) − 𝑽(𝒔′_t)
+		return next_reward + Gamma * forward(next_state) - forward(state);
 	}
 
 	void train_2step (board::reward next_reward, board::reward next_next_reward, state_t next_next_state, state_t state) {
@@ -454,17 +445,8 @@ public:
 			net[i].value[state.states[i]] += (alpha * (next_reward + Gamma * next_next_reward + Gamma * Gamma * forward(next_next_state) - forward(state)));
 	}
 
-	void train_lambda (std::vector <board::reward> rewards, std::vector <state_t> states, int last) {
-		float q_target = 0.0; 
-		for (int i = 0; i < last; ++i) {
-			float sum = 0;
-			for (int j = 0; j <= i; ++j)
-				sum += (pow(Gamma, j) * rewards[rewards.size() - 5 + j]);
-			sum += (pow(Gamma, i + 1) * forward(states[states.size() - 5 + i]));
-			q_target += (sum * pow(lambda, i + 1));
-		}
-		for (int i = 0; i < N; ++i)
-			net[i].value[states[states.size() - 6].states[i]] += (alpha * (q_target - forward(states[states.size() - 6])));		
+	void train_lambda () {
+		return;
 	}
 
 	void TD_0 () {
@@ -474,44 +456,41 @@ public:
 			net[i].value[next_next_state.states[i]] -= (alpha * forward(next_next_state));
 
 		states.pop_back();
-		rewards.pop_back();
 		// train second last afterstate
 		state_t next_state = states.back();
-		board::reward next_reward = rewards.back();
+		board::reward next_next_reward = rewards.back();
 		for (int i = 0; i < N; ++i)
-			net[i].value[next_state.states[i]] += (alpha * (next_reward + Gamma * forward(next_next_state) - forward(next_state)));
+			net[i].value[next_state.states[i]] += (alpha * (next_next_reward + Gamma * forward(next_next_state) - forward(next_state)));
 
+		states.pop_back();
+		rewards.pop_back();
 		// train third last afterstate
-		board::reward next_next_reward = next_reward;
-		next_reward = rewards.back();
+		board::reward next_reward = rewards.back();
 		while (!states.empty()) {
 			train_2step(next_reward, next_next_reward, next_state, states.back());
 			next_next_state = next_state;
 			next_state = states.back();
 			next_next_reward = next_reward;
+			rewards.pop_back();
 			next_reward = rewards.back();
 			states.pop_back();
-			rewards.pop_back();
 		}
 	}
 
-	void TD_lambda () {
-		state_t tmp;
-		for (int i = 0; i < 5; ++i) {
-			rewards.push_back(0);
-			states.push_back(tmp);
+	void TD_lambda (std::vector <board::reward> rewards, std::vector <state_t> states) {
+		for (int i = 0; i < states.size() - 1; ++i) {
+			float delta = getDelta(rewards[i + 1], states[i + 1], states[i]);
+			int stop = i - 4 > 0 ? i - 4 : 0;
+			for (int j = i; j >= stop; --j) {
+				for (int k = 0; k < N; ++k)
+					net[k].value[states[j].states[k]] += (alpha * delta * pow(lambda, i - j));
+			}
 		}
-
-		for (int i = 0; i < 5; ++i) {
-			train_lambda(rewards, states, i);
-			states.pop_back();
-			rewards.pop_back();
-		}
-
-		while (states.size() > 5) {
-			train_lambda(rewards, states, 5);
-			states.pop_back();
-			rewards.pop_back();
+		// train last state
+		float delta = -forward(states[states.size() - 1]);
+		for (int j = states.size() - 1; j >= states.size() - 5; --j) {
+			for (int k = 0; k < N; ++k)
+				net[k].value[states[j].states[k]] += (alpha * delta * pow(lambda, states.size() - 1 - j));
 		}
 	}
 
@@ -519,8 +498,8 @@ public:
         if (states.empty())
             return;
 
-		TD_0();
-		// TD_lambda();		
+		// TD_0();
+		TD_lambda(rewards, states);		
 		states.clear();
 		rewards.clear();
 	}
@@ -528,4 +507,5 @@ public:
 private:
 	std::vector <state_t> states;
 	std::vector <board::reward> rewards;
+	float alphas[N];
 };
