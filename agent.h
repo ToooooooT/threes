@@ -401,7 +401,7 @@ public:
 		return value;
 	}
 
-    bool have384 (board before) {
+    bool haveSTOPNUM (board before) {
         board::grid tile = before.getTile();
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 4; ++j) {
@@ -412,7 +412,18 @@ public:
         return false;
     }
 
-	bool have192 (board before) {
+	bool havebig384 (board before) {
+        board::grid tile = before.getTile();
+        for (int i = 0; i < 4; ++i) {
+            for (int j = 0; j < 4; ++j) {
+                if (tile[i][j] >= 10)
+                    return true;
+            }
+        }
+        return false;
+    }
+
+	bool havebigFIRSTSTAGENUM (board before) {
         board::grid tile = before.getTile();
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 4; ++j) {
@@ -427,7 +438,7 @@ public:
 		board::reward reward = 0;
 		state_t state;
 
-        if (have384(before)) {
+        if (haveSTOPNUM(before)) {
             if (board(before).slide(0) != -1)
 		    	return action::slide(0);
 	        else if (board(before).slide(3) != -1)
@@ -440,22 +451,17 @@ public:
 			    return action();
         }
 
-		bool useSecond = have192(before);
+		bool useSecond = havebigFIRSTSTAGENUM(before);
 
 		int maxOp = choose_max_value_action(reward, state, before, useSecond);	
 		
         if (maxOp == -1) {
-            if (!have192(before)) {
+            if (!havebigFIRSTSTAGENUM(before) && !havebig384(before)) {
                 int tmp = rewards.back();
                 tmp -= 9999;
                 rewards.pop_back();
                 rewards.push_back(tmp);
-            } else if (!have384(before)) {
-                int tmp = rewards.back();
-                tmp -= 9999;
-                rewards.pop_back();
-                rewards.push_back(tmp);
-            }
+			}
 			state_t tmp;
 			board::grid tile = board(before).getTile();
 			getState(tmp, tile);
@@ -466,12 +472,8 @@ public:
 
         board after = board(before);
         after.slide(maxOp);
-        if (!have192(before) && have192(after)) {
-            reward += 9999;
+        if (!havebigFIRSTSTAGENUM(before) && havebigFIRSTSTAGENUM(after))
 			splitpoint = states.size() + 1;
-		}
-        if (!have384(before) && have384(after))
-            reward += 9999;
 
 		states.push_back(state);
 		rewards.push_back(reward);
@@ -505,7 +507,7 @@ public:
 			for (int j = 0; j <= i; ++j)
 				sum += (pow(Gamma, j) * rewards[rewards.size() - 5 + j]);
 			sum += (pow(Gamma, i + 1) * forward(states[states.size() - 5 + i], states.size() - 5 + i >= splitpoint));
-			if (useSecond || states.size() - 5 + i < splitpoint)
+			if (useSecond || states.size() - 5 + i < splitpoint || (!useSecond && states.size() - 5 + i == splitpoint))
 				q_target += (sum * pow(lambda, i + 1));
 		}
 		for (int i = 0; i < N; ++i)
