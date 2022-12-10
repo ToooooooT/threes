@@ -25,6 +25,7 @@
 #define lambda 0.5
 #define STOPNUM 12
 #define STATENUM 13
+#define BETA 0.5 
 
 typedef struct {
 	int states[N];
@@ -109,6 +110,16 @@ protected:
 			for (int j = 0; j < net[i].size(); ++j)
 				net[i].value[j] = 59999;
 		}
+
+		//TC initialization
+		for (int i = N; i < 3 * N; ++i) {
+			for (int j = 0; j < net[i].size(); ++j)
+				net[i].value[j] = 0;
+		}
+
+		// TC alpha parameters
+		for (int i = 0; i < net[3 * N].size(); ++i)
+			net[3 * N].value[i] = 1;
 	}
 	virtual void load_weights(const std::string& path) {
 		std::ifstream in(path, std::ios::in | std::ios::binary);
@@ -494,12 +505,46 @@ public:
 		}
 	}
 
+	void TC_lambda (std::vector <board::reward> rewards, std::vector <state_t> states, int h) {
+		for (int i = 0; i < states.size() - 1; ++i) {
+			float delta = getDelta(rewards[i + 1], states[i + 1], states[i]);
+			int stop = i - h + 1 > 0 ? i - h + 1 : 0;
+			for (int j = i; j >= stop; --j) {
+				for (int k = 0; k < N; ++k) {
+					// alpha parameters
+					net[3 * N].value[k] = net[2 * N + k].value[states[j].states[k]] ? abs(net[N + k].value[states[j].states[k]]) / net[2 * N + k].value[states[j].states[k]] : 1;
+					// update value function
+					net[k].value[states[j].states[k]] += (BETA * net[3 * N].value[k] / N * delta * pow(lambda, i - j));
+					// update E function
+					net[k + N].value[states[j].states[k]] += delta;
+					// update A function
+					net[k + 2 * N].value[states[j].states[k]] += abs(delta);
+				}
+			}
+		}
+		// train last state
+		float delta = -forward(states[states.size() - 1]);
+		for (int j = states.size() - 1; j >= states.size() - h; --j) {
+			for (int k = 0; k < N; ++k) {
+				// alpha parameters
+				net[3 * N].value[k] = net[2 * N + k].value[states[j].states[k]] ? abs(net[N + k].value[states[j].states[k]]) / net[2 * N + k].value[states[j].states[k]] : 1;
+				// update value function
+				net[k].value[states[j].states[k]] += (BETA * net[3 * N].value[k] / N * delta * pow(lambda, states.size() - 1 - j));
+				// update E function
+				net[k + N].value[states[j].states[k]] += delta;
+				// update A function
+				net[k + 2 * N].value[states[j].states[k]] += abs(delta);
+			}
+		}
+	}
+
 	virtual void close_episode(const std::string& flag = "") {
         if (states.empty())
             return;
 
 		// TD_0();
-		TD_lambda(rewards, states);		
+		// TD_lambda(rewards, states);		
+		TC_lambda(rewards, states, 5);		
 		states.clear();
 		rewards.clear();
 	}
@@ -507,5 +552,4 @@ public:
 private:
 	std::vector <state_t> states;
 	std::vector <board::reward> rewards;
-	float alphas[N];
 };
