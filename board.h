@@ -126,6 +126,42 @@ public:
 		return attr;
 	}
 
+	bool setHintTile (int HintTile, int dir, int j) {
+		switch (dir) {
+			case 0:
+				if (tile[3][j] == 0) {
+					tile[3][j] = HintTile;
+					return true;
+				}
+				return false;
+				break;
+			case 1:
+				if (tile[j][0] == 0) {
+					tile[j][0] = HintTile;
+					return true;
+				}
+				return false;
+				break;
+			case 2:
+				if (tile[0][j] == 0) {
+					tile[0][j] = HintTile;
+					return true;
+				}
+				return false;
+				break;
+			case 3:
+				if (tile[j][3] == 0) {
+					tile[j][3] = HintTile;
+					return true;
+				}
+				return false;
+				break;
+			default:
+				break;
+		}
+		return false;
+	}
+
 	/**
 	 * apply an action to the board
 	 * return the reward of the action, or -1 if the action is illegal
