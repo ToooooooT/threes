@@ -21,12 +21,12 @@
 #include "weight.h"
 #include <stdlib.h>
 
-#define N 53
+#define N 54
 #define Gamma 0.99
 #define lambda 0.5
 #define STOPNUM 12
 #define STATENUM 13
-#define BETA 0.5 // TC lambda hyperparameter
+#define BETA 0.00001 // TC lambda hyperparameter
 #define HEIGHT 2 // expectimax search tree depth - 1
 
 typedef struct {
@@ -200,32 +200,32 @@ public:
 	random_slider(const std::string& args = "") : weight_agent("name=slide role=slider " + args) {}
 
 	void getState (state_t &state, board::grid tile) {
-		/*
-         *   o x x x
-         *   o x x x
-         *   x x x x    x 12
-         *   x x x x
-         */
-        int tmp = 0, count = 0;
-		for (int i = 0; i < 3; ++i) {
-			for (int j = 0; j < 4; ++j) {
-				state.states[count] = STATENUM * tile[i][j] + tile[i + 1][j];
-				count++;
-			}
-		}
+		// /*
+        //  *   o x x x
+        //  *   o x x x
+        //  *   x x x x    x 12
+        //  *   x x x x
+        //  */
+        // int tmp = 0, count = 0;
+		// for (int i = 0; i < 3; ++i) {
+		// 	for (int j = 0; j < 4; ++j) {
+		// 		state.states[count] = STATENUM * tile[i][j] + tile[i + 1][j];
+		// 		count++;
+		// 	}
+		// }
 
-		/*
-         *   o o x x
-         *   x x x x
-         *   x x x x    x 12
-         *   x x x x
-         */
-		for (int i = 0; i < 4; ++i) {
-			for (int j = 0; j < 3; ++j) {
-				state.states[count] = STATENUM * tile[i][j] + tile[i][j + 1];
-				count++;
-			}
-		}
+		// /*
+        //  *   o o x x
+        //  *   x x x x
+        //  *   x x x x    x 12
+        //  *   x x x x
+        //  */
+		// for (int i = 0; i < 4; ++i) {
+		// 	for (int j = 0; j < 3; ++j) {
+		// 		state.states[count] = STATENUM * tile[i][j] + tile[i][j + 1];
+		// 		count++;
+		// 	}
+		// }
 
 		/*
          *   o x x x
@@ -233,6 +233,7 @@ public:
          *   o x x x    x 4
          *   o x x x
          */
+        int tmp = 0, count = 0;
 		for (int j = 0; j < 4; ++j) {
 			tmp = 0;
 			for (int i = 0; i < 4; ++i) {
@@ -319,93 +320,93 @@ public:
             }
         }
 		
-        // /*  
-        //  *           k = 2:                         k = 0:
-        //  *   o x x x    x o x x     x x o x     o o x x    x o o x     x x o o
-        //  *   o x x x    x o x x     x x o x     o o x x    x o o x     x x o o
-        //  *   o o x x    x o o x     x x o o     o x x x    x o x x     x x o x
-        //  *   o o x x    x o o x     x x o o     o x x x    x o x x     x x o x
-        //  */
-        // for (int k = 0; k < 3; k += 2) {
-        //     for (int j = 0; j < 3; ++j) {
-        //         tmp = 0;
-        //         for (int i = 0; i < 4; ++i) {
-	    // 		    tmp += tile[i][j];
-		//     	    tmp *= STATENUM;
-		// 	    }
-        //         tmp += tile[k][j + 1];
-    	// 		tmp *= STATENUM;
-        //         tmp += tile[k + 1][j + 1];
-		//         state.states[count] = tmp;
-        //         count++;
-        //     }
-        // }
+        /*  
+         *           k = 2:                         k = 0:
+         *   o x x x    x o x x     x x o x     o o x x    x o o x     x x o o
+         *   o x x x    x o x x     x x o x     o o x x    x o o x     x x o o
+         *   o o x x    x o o x     x x o o     o x x x    x o x x     x x o x
+         *   o o x x    x o o x     x x o o     o x x x    x o x x     x x o x
+         */
+        for (int k = 0; k < 3; k += 2) {
+            for (int j = 0; j < 3; ++j) {
+                tmp = 0;
+                for (int i = 0; i < 4; ++i) {
+	    		    tmp += tile[i][j];
+		    	    tmp *= STATENUM;
+			    }
+                tmp += tile[k][j + 1];
+    			tmp *= STATENUM;
+                tmp += tile[k + 1][j + 1];
+		        state.states[count] = tmp;
+                count++;
+            }
+        }
 
-        // /*
-        //  *           k = 2:                             k = 0:
-        //  *   x x x o    x x o x     x o x x     x x o o    x o o x     o o x x
-        //  *   x x x o    x x o x     x o x x     x x o o    x o o x     o o x x
-        //  *   x x o o    x o o x     o o x x     x x x o    x x o x     x o x x
-        //  *   x x o o    x o o x     o o x x     x x x o    x x o x     x o x x
-        //  */
-        // for (int k = 0; k < 3; k += 2) {
-        //     for (int j = 3; j > 0; --j) {
-        //         tmp = 0;
-        //         for (int i = 0; i < 4; ++i) {
-	    // 		    tmp += tile[i][j];
-		//     	    tmp *= STATENUM;
-		// 	    }
-        //         tmp += tile[k][j - 1];
-	    // 		tmp *= STATENUM;
-        //         tmp += tile[k + 1][j - 1];
-		//         state.states[count] = tmp;
-        //         count++;
-        //     }
-        // }
+        /*
+         *           k = 2:                             k = 0:
+         *   x x x o    x x o x     x o x x     x x o o    x o o x     o o x x
+         *   x x x o    x x o x     x o x x     x x o o    x o o x     o o x x
+         *   x x o o    x o o x     o o x x     x x x o    x x o x     x o x x
+         *   x x o o    x o o x     o o x x     x x x o    x x o x     x o x x
+         */
+        for (int k = 0; k < 3; k += 2) {
+            for (int j = 3; j > 0; --j) {
+                tmp = 0;
+                for (int i = 0; i < 4; ++i) {
+	    		    tmp += tile[i][j];
+		    	    tmp *= STATENUM;
+			    }
+                tmp += tile[k][j - 1];
+	    		tmp *= STATENUM;
+                tmp += tile[k + 1][j - 1];
+		        state.states[count] = tmp;
+                count++;
+            }
+        }
 
-        // /*  
-        //  *           k = 0:                         k = 2:
-        //  *   o o o o    x x x x     x x x x     o o o o    x x x x     x x x x
-        //  *   o o x x    o o o o     x x x x     x x o o    o o o o     x x x x
-        //  *   x x x x    o o x x     o o o o     x x x x    x x o o     o o o o
-        //  *   x x x x    x x x x     o o x x     x x x x    x x x x     x x o o
-        //  */
-        // for (int k = 0; k < 3; k += 2) {
-        //     for (int i = 0; i < 3; ++i) {
-        //         tmp = 0;
-        //         for (int j = 0; j < 4; ++j) {
-	    // 		    tmp += tile[i][j];
-		//     	    tmp *= STATENUM;
-		// 	    }
-        //         tmp += tile[i + 1][k];
-    	// 		tmp *= STATENUM;
-        //         tmp += tile[i + 1][k + 1];
-		//         state.states[count] = tmp;
-        //         count++;
-        //     }
-        // }
+        /*  
+         *           k = 0:                         k = 2:
+         *   o o o o    x x x x     x x x x     o o o o    x x x x     x x x x
+         *   o o x x    o o o o     x x x x     x x o o    o o o o     x x x x
+         *   x x x x    o o x x     o o o o     x x x x    x x o o     o o o o
+         *   x x x x    x x x x     o o x x     x x x x    x x x x     x x o o
+         */
+        for (int k = 0; k < 3; k += 2) {
+            for (int i = 0; i < 3; ++i) {
+                tmp = 0;
+                for (int j = 0; j < 4; ++j) {
+	    		    tmp += tile[i][j];
+		    	    tmp *= STATENUM;
+			    }
+                tmp += tile[i + 1][k];
+    			tmp *= STATENUM;
+                tmp += tile[i + 1][k + 1];
+		        state.states[count] = tmp;
+                count++;
+            }
+        }
 
-        // /*  
-        //  *           k = 0:                         k = 2:
-        //  *   o o x x    x x x x     x x x x     x x o o    x x x x     x x x x
-        //  *   o o o o    o o x x     x x x x     o o o o    x x o o     x x x x
-        //  *   x x x x    o o o o     o o x x     x x x x    o o o o     x x o o
-        //  *   x x x x    x x x x     o o o o     x x x x    x x x x     o o o o
-        //  */
-        // for (int k = 0; k < 3; k += 2) {
-        //     for (int i = 1; i < 4; ++i) {
-        //         tmp = 0;
-        //         for (int j = 0; j < 4; ++j) {
-	    // 		    tmp += tile[i][j];
-		//     	    tmp *= STATENUM;
-		// 	    }
-        //         tmp += tile[i - 1][k];
-    	// 		tmp *= STATENUM;
-        //         tmp += tile[i - 1][k + 1];
-		//         state.states[count] = tmp;
-        //         count++;
-        //     }
-        // }
+        /*  
+         *           k = 0:                         k = 2:
+         *   o o x x    x x x x     x x x x     x x o o    x x x x     x x x x
+         *   o o o o    o o x x     x x x x     o o o o    x x o o     x x x x
+         *   x x x x    o o o o     o o x x     x x x x    o o o o     x x o o
+         *   x x x x    x x x x     o o o o     x x x x    x x x x     o o o o
+         */
+        for (int k = 0; k < 3; k += 2) {
+            for (int i = 1; i < 4; ++i) {
+                tmp = 0;
+                for (int j = 0; j < 4; ++j) {
+	    		    tmp += tile[i][j];
+		    	    tmp *= STATENUM;
+			    }
+                tmp += tile[i - 1][k];
+    			tmp *= STATENUM;
+                tmp += tile[i - 1][k + 1];
+		        state.states[count] = tmp;
+                count++;
+            }
+        }
 	}
 
 	int choose_max_value_action (board::reward &reward, state_t &state, const board& before) {
@@ -421,7 +422,7 @@ public:
 				continue;
 			tile = after.getTile();
 			getState(tmpState, tile);
-			// tmpState.states[N - 1] = ((int) board(before).getAttr() & 0x3) - 1;
+			tmpState.states[N - 1] = ((int) board(before).getAttr() & 0x3) - 1;
 			float value = forward(tmpState); 
 			if (value + tmp > maxValue) {
 				state = tmpState;
